@@ -1,0 +1,345 @@
+#include <bits/stdc++.h>
+
+using namespace std;
+
+
+using ll = long long;
+
+const ll INF = (ll)4e18;
+
+
+// Edge stored in adjacency list
+
+struct Edge {
+
+    int to;
+
+    ll weight;
+
+    Edge(int t, ll w) : to(t), weight(w) {}
+
+};
+
+
+// Graph class with update capability
+
+class DynamicGraph {
+
+public:
+
+    int n; // number of nodes (0..n-1)
+
+    vector<vector<Edge>> adj;
+
+    // map combined key (u<<32 | v) -> index in adj[u] for quick update
+
+    unordered_map<uint64_t, size_t> edgeIndex;
+
+
+    DynamicGraph(int n_) : n(n_), adj(n_) {}
+
+
+    // Helper to build 64-bit key for edge (u,v)
+
+    static uint64_t key(int u, int v) {
+
+        return ( (uint64_t)(uint32_t)u << 32 ) | (uint32_t)v;
+
+    }
+
+
+    // Add an edge (directed). If edge already exists, update its weight.
+
+    void addOrUpdateEdge(int u, int v, ll w) {
+
+        uint64_t k = key(u, v);
+
+        auto it = edgeIndex.find(k);
+
+        if (it != edgeIndex.end()) {
+
+            // update existing
+
+            adj[u][it->second].weight = w;
+
+        } else {
+
+            // add new
+
+            adj[u].emplace_back(v, w);
+
+            edgeIndex[k] = adj[u].size() - 1;
+
+        }
+
+    }
+
+
+    // Remove an edge if exists
+
+    void removeEdge(int u, int v) {
+
+        uint64_t k = key(u, v);
+
+        auto it = edgeIndex.find(k);
+
+        if (it == edgeIndex.end()) return;
+
+        size_t idx = it->second;
+
+        // swap with last and pop for O(1) removal
+
+        size_t last = adj[u].size() - 1;
+
+        if (idx != last) {
+
+            swap(adj[u][idx], adj[u][last]);
+
+            // update index of moved edge
+
+            uint64_t movedKey = key(u, adj[u][idx].to);
+
+            edgeIndex[movedKey] = idx;
+
+        }
+
+        adj[u].pop_back();
+
+        edgeIndex.erase(it);
+
+    }
+
+
+    // Dijkstra from source s to destination t. Returns pair(distance, path vector).
+
+    pair<ll, vector<int>> dijkstra(int s, int t) {
+
+        vector<ll> dist(n, INF);
+
+        vector<int> parent(n, -1);
+
+        dist[s] = 0;
+
+
+        // min-heap: (distance, node)
+
+        priority_queue<pair<ll,int>, vector<pair<ll,int>>, greater<pair<ll,int>>> pq;
+
+        pq.push({0, s});
+
+
+        while (!pq.empty()) {
+
+            auto [d, u] = pq.top(); pq.pop();
+
+            if (d != dist[u]) continue; // outdated entry
+
+            if (u == t) break; // optional early exit when target reached
+
+
+            for (const auto &e : adj[u]) {
+
+                int v = e.to;
+
+                ll nd = d + e.weight;
+
+                if (nd < dist[v]) {
+
+                    dist[v] = nd;
+
+                    parent[v] = u;
+
+                    pq.push({nd, v});
+
+                }
+
+            }
+
+        }
+
+
+        if (dist[t] == INF) return {INF, {}}; // unreachable
+
+
+        // reconstruct path
+
+        vector<int> path;
+
+        for (int cur = t; cur != -1; cur = parent[cur]) path.push_back(cur);
+
+        reverse(path.begin(), path.end());
+
+        return {dist[t], path};
+
+    }
+
+
+    // utility: print adjacency list (for debugging)
+
+    void printGraph() const {
+
+        cout << "Graph adjacency lists:\n";
+
+        for (int u = 0; u < n; ++u) {
+
+            cout << u << ":";
+
+            for (const auto &e : adj[u]) cout << " -> (" << e.to << ", " << e.weight << ")";
+
+            cout << "\n";
+
+        }
+
+    }
+
+};
+
+
+// Example interactive simulation
+
+int main() {
+
+    ios::sync_with_stdio(false);
+
+    cin.tie(nullptr);
+
+    cout << fixed << setprecision(2);
+
+
+    // Example: read number of nodes
+
+    int N;
+
+    cout << "Enter number of intersections (nodes): ";
+
+    if (!(cin >> N)) return 0;
+
+
+    DynamicGraph G(N);
+
+
+    cout << "\nCommands:\n";
+
+    cout << "  add u v w         -- add directed edge u->v with weight w (or update if exists)\n";
+
+    cout << "  rem u v           -- remove edge u->v\n";
+
+    cout << "  query s t         -- compute fastest route from s to t and show path/time\n";
+
+    cout << "  show              -- print graph (for debugging)\n";
+
+    cout << "  exit              -- quit\n\n";
+
+
+    string cmd;
+
+    while (true) {
+
+        cout << "> ";
+
+        if (!(cin >> cmd)) break;
+
+
+        if (cmd == "add") {
+
+            int u, v;
+
+            double w;
+
+            cin >> u >> v >> w;
+
+            if (u < 0 || u >= N || v < 0 || v >= N) {
+
+                cout << "Invalid nodes. Must be between 0 and " << N-1 << ".\n";
+
+                continue;
+
+            }
+
+            if (w < 0) {
+
+                cout << "Edge weight must be non-negative.\n";
+
+                continue;
+
+            }
+
+            G.addOrUpdateEdge(u, v, (ll)round(w*1000)); // store as integer ms or 1/1000 units if needed
+
+            cout << "Edge " << u << "->" << v << " set to weight " << w << "\n";
+
+        } else if (cmd == "rem") {
+
+            int u, v;
+
+            cin >> u >> v;
+
+            G.removeEdge(u, v);
+
+            cout << "Removed edge " << u << "->" << v << " if it existed.\n";
+
+        } else if (cmd == "query") {
+
+            int s, t;
+
+            cin >> s >> t;
+
+            if (s < 0 || s >= N || t < 0 || t >= N) {
+
+                cout << "Invalid nodes. Must be between 0 and " << N-1 << ".\n";
+
+                continue;
+
+            }
+
+            // Run dijkstra (note: we stored weights multiplied by 1000)
+
+            auto [distInt, path] = G.dijkstra(s, t);
+
+            if (distInt == INF) {
+
+                cout << "No route from " << s << " to " << t << ".\n";
+
+            } else {
+
+                // convert back to double by dividing 1000 (if that convention used)
+
+                double dist = (double)distInt / 1000.0;
+
+                cout << "Fastest travel time from " << s << " to " << t << " = " << dist << " (units)\n";
+
+                cout << "Path: ";
+
+                for (size_t i = 0; i < path.size(); ++i) {
+
+                    if (i) cout << " -> ";
+
+                    cout << path[i];
+
+                }
+
+                cout << "\n";
+
+            }
+
+        } else if (cmd == "show") {
+
+            G.printGraph();
+
+        } else if (cmd == "exit") {
+
+            break;
+
+        } else {
+
+            cout << "Unknown command.\n";
+
+        }
+
+    }
+
+cout << "Exiting.\n";
+
+    return 0;
+
+}
