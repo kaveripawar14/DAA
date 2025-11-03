@@ -1,0 +1,158 @@
+#include <iostream>
+
+#include <vector>
+
+#include <algorithm>
+
+#include <iomanip>
+
+using namespace std;
+
+
+// Structure to represent each relief item
+
+struct Item {
+
+    string name;
+
+    double weight;
+
+    double value;
+
+    bool divisible; // true for fractional (food, water), false for whole (medicine)
+
+};
+
+
+// Compare items based on value-to-weight ratio (for greedy fractional part)
+
+bool compare(Item a, Item b) {
+
+    return (a.value / a.weight) > (b.value / b.weight);
+
+}
+
+
+// Function to maximize total utility using hybrid Knapsack
+
+double maximizeReliefValue(vector<Item> &items, double capacity) {
+
+    // Sort items based on value/weight ratio
+
+    sort(items.begin(), items.end(), compare);
+
+
+    double totalValue = 0.0;  // total utility value carried
+
+    double remainingCapacity = capacity;
+
+
+    cout << fixed << setprecision(2);
+
+    cout << "\nItems selected for transportation:\n";
+
+    cout << "-----------------------------------------------\n";
+
+    cout << "Item\t\tWeight\t\tValue\t\tTaken\n";
+
+    cout << "-----------------------------------------------\n";
+
+
+    for (auto &item : items) {
+
+        if (remainingCapacity <= 0) break;
+
+
+        // If item can fit completely
+
+        if (item.weight <= remainingCapacity) {
+
+            totalValue += item.value;
+
+            remainingCapacity -= item.weight;
+
+            cout << item.name << "\t\t" << item.weight << "\t\t" << item.value << "\t\t100%\n";
+
+        }
+
+        else {
+
+            // If the item is divisible (fractional), take the fraction
+
+            if (item.divisible) {
+
+                double fraction = remainingCapacity / item.weight;
+
+                totalValue += item.value * fraction;
+
+                cout << item.name << "\t\t" << item.weight * fraction << "\t\t" 
+
+                     << item.value * fraction << "\t\t" << fraction * 100 << "%\n";
+
+                remainingCapacity = 0;
+
+            }
+
+            // If the item is not divisible, skip it
+
+        }
+
+    }
+
+
+    cout << "-----------------------------------------------\n";
+
+    cout << "Remaining Capacity: " << remainingCapacity << " kg\n";
+
+    cout << "Total Utility Value: " << totalValue << endl;
+
+    return totalValue;
+
+}
+
+
+int main() {
+
+    int n;
+
+    double maxCapacity;
+
+
+    cout << "===== Flood Relief Optimization System =====\n";
+
+    cout << "Enter the boat's maximum weight capacity (in kg): ";
+
+    cin >> maxCapacity;
+
+
+    cout << "Enter number of relief items: ";
+
+    cin >> n;
+
+
+    vector<Item> items(n);
+
+
+    cout << "\nEnter details for each item:\n";
+
+    cout << "(Format: Name Weight Value Divisible[1=Yes,0=No])\n\n";
+
+
+    for (int i = 0; i < n; i++) {
+
+        cout << "Item " << i + 1 << ": ";
+
+        cin >> items[i].name >> items[i].weight >> items[i].value >> items[i].divisible;
+
+    }
+
+
+    // Compute maximum possible utility
+
+    maximizeReliefValue(items, maxCapacity);
+
+
+    return 0;
+
+}
+
