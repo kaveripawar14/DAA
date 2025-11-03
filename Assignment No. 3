@@ -1,0 +1,213 @@
+#include <iostream> 
+
+#include <vector> 
+
+#include <algorithm> 
+
+using namespace std; 
+
+struct Item { 
+
+ int id; 
+
+ int weight; 
+
+ int utility; 
+
+ bool perishable; 
+
+}; 
+
+struct Result { 
+
+ int totalUtility; 
+
+ vector<int> selectedItems; 
+
+}; 
+
+Result knapsackDP(const vector<Item>& items, int capacity) { 
+
+ int n = (int)items.size(); 
+
+ vector<vector<int>> dp(n + 1, vector<int>(capacity + 1, 0)); 
+
+ vector<vector<bool>> keep(n + 1, vector<bool>(capacity + 1, false)); 
+
+ for (int i = 1; i <= n; ++i) { 
+
+ int w = items[i - 1].weight; 
+
+ int u = items[i - 1].utility; 
+
+ for (int c = 0; c <= capacity; ++c) { 
+
+ if (w <= c && dp[i - 1][c - w] + u > dp[i - 1][c]) { 
+
+ dp[i][c] = dp[i - 1][c - w] + u; 
+
+ keep[i][c] = true; 
+
+6
+
+ } else { 
+
+ dp[i][c] = dp[i - 1][c]; 
+
+ } 
+
+ } 
+
+ } 
+
+ int c = capacity; 
+
+ vector<int> selected; 
+
+ for (int i = n; i >= 1; --i) { 
+
+ if (keep[i][c]) { 
+
+ selected.push_back(items[i - 1].id); 
+
+ c -= items[i - 1].weight; 
+
+ } 
+
+ } 
+
+ reverse(selected.begin(), selected.end()); 
+
+ return {dp[n][capacity], selected}; 
+
+} 
+
+Result prioritizePerishablesAndKnapsack(const vector<Item>& items, int capacity) {  vector<Item> perishables, nonPerishables; 
+
+ for (const auto& item : items) { 
+
+ if (item.perishable) perishables.push_back(item); 
+
+ else nonPerishables.push_back(item); 
+
+ } 
+
+ Result resPerish = knapsackDP(perishables, capacity); 
+
+ int usedWeight = 0; 
+
+ for (int id : resPerish.selectedItems) { 
+
+ for (auto& item : perishables) 
+
+ if (item.id == id) { 
+
+7
+
+ usedWeight += item.weight; 
+
+ break; 
+
+ } 
+
+ } 
+
+ int remainingCapacity = capacity - usedWeight; 
+
+ Result resNonPerish = knapsackDP(nonPerishables, remainingCapacity); 
+
+ int totalUtility = resPerish.totalUtility + resNonPerish.totalUtility; 
+
+ vector<int> allSelected = resPerish.selectedItems; 
+
+ allSelected.insert(allSelected.end(), resNonPerish.selectedItems.begin(), 
+
+resNonPerish.selectedItems.end()); 
+
+ return {totalUtility, allSelected}; 
+
+} 
+
+vector<Result> allocateMultipleTrucks(const vector<Item>& items, int trucks, int capacity) {  vector<Result> truckResults(trucks); 
+
+ vector<Item> remainingItems = items; 
+
+ for (int t = 0; t < trucks; ++t) { 
+
+ Result res = prioritizePerishablesAndKnapsack(remainingItems, capacity);  truckResults[t] = res; 
+
+ vector<Item> newRemaining; 
+
+ for (const auto& item : remainingItems) { 
+
+ if (find(res.selectedItems.begin(), res.selectedItems.end(), item.id) == res.selectedItems.end())  newRemaining.push_back(item); 
+
+ } 
+
+ remainingItems = newRemaining; 
+
+ } 
+
+8
+
+ return truckResults; 
+
+} 
+
+int main() { 
+
+ ios::sync_with_stdio(false); 
+
+ cin.tie(nullptr); 
+
+ vector<Item> items = { 
+
+ {1, 10, 60, true}, 
+
+ {2, 20, 100, true}, 
+
+ {3, 30, 120, false}, 
+
+ {4, 15, 70, true}, 
+
+ {5, 25, 90, false}, 
+
+ {6, 5, 30, true}, 
+
+ }; 
+
+ int capacity = 50; 
+
+ int trucks = 2; 
+
+ cout << "\n================ SINGLE TRUCK OPTIMIZATION ================\n";  Result res = prioritizePerishablesAndKnapsack(items, capacity); 
+
+ cout << "Total Utility Value: " << res.totalUtility << "\n"; 
+
+ cout << "Selected Items IDs (in loading order): "; 
+
+ for (int id : res.selectedItems) cout << id << " "; 
+
+ cout << "\n-----------------------------------------------------------\n"; 
+
+ cout << "\n================ MULTIPLE TRUCKS ALLOCATION ===============\n";  vector<Result> results = allocateMultipleTrucks(items, trucks, capacity); 
+
+ for (int t = 0; t < trucks; ++t) { 
+
+ cout << "Truck " << (t + 1) << " Summary:\n"; 
+
+ cout << " Total Utility Value: " << results[t].totalUtility << "\n"; 
+
+ cout << " Selected Items IDs: "; 
+
+9
+
+ for (int id : results[t].selectedItems) cout << id << " "; 
+
+ cout << "\n-----------------------------------------------------------\n"; 
+
+ } 
+
+ return 0; 
+
+} 
